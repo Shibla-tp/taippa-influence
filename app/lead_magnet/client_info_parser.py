@@ -15,22 +15,39 @@ from pipelines.data_extractor import people_enrichment,people_enrichment_linkedi
 AIRTABLE_BASE_ID = 'app5s8zl7DsUaDmtx'
 CUR_TABLE = 'profiles_cleaned'
 # LEAD_MAGNET_TABLE = 'lead_magnet_details'
-LEAD_MAGNET_TABLE = 'lead_magnet'
-AIRTABLE_API_KEY = os.getenv('AIRTABLE_API_KEY', 'patELEdV0LAx6Aba3.393bf0e41eb59b4b80de15b94a3d122eab50035c7c34189b53ec561de590dff3')
+LEAD_MAGNET_TABLE = 'cur_guideline'
+AIRTABLE_API_KEY = os.getenv('AIRTABLE_API_KEY', 'patPgbQSC8pAg1Gbl.19d364f069574aba976cf512ba54d63aea98b4307f50310481d0d03e20ba562f')
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 AIRTABLE_CLEANED = Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, CUR_TABLE)
 # AIRTABLE_LEAD_MAGNET = Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, LEAD_MAGNET_TABLE)
 
-def unique_key_check_airtable(column_name,unique_value,raw_table):
+# def unique_key_check_airtable(column_name,unique_value,raw_table):
+#     try:
+#         print('Running unique key check')
+#         api = Api(AIRTABLE_API_KEY)
+#         airtable_obj = api.table(AIRTABLE_BASE_ID, raw_table)
+#         records = airtable_obj.all()
+#         print(f"\nCompleted unique key check")
+#         return any(record['fields'].get(column_name) == unique_value for record in records)
+#     except Exception as e:
+#         print(f"Error occured in {__name__} while performing unique value check in airtable.")
+def unique_key_check_airtable(column_name, unique_value, raw_table):
     try:
-        print('Running unique key check')
-        api = Api(AIRTABLE_API_KEY)
-        airtable_obj = api.table(AIRTABLE_BASE_ID, raw_table)
-        records = airtable_obj.all()
-        print(f"\nCompleted unique key check")
-        return any(record['fields'].get(column_name) == unique_value for record in records)
+        airtable_obj = Table(
+            AIRTABLE_API_KEY,
+            AIRTABLE_BASE_ID,
+            raw_table
+        )
+
+        formula = f"{{{column_name}}} = '{unique_value}'"
+        records = airtable_obj.all(formula=formula)
+
+        return len(records) > 0
+
     except Exception as e:
-        print(f"Error occured in {__name__} while performing unique value check in airtable.")
+        print(f"Error in unique check: {e}")
+        return False
+
 
 def fetch_user_details(user_table,user_id):
     try:
@@ -80,18 +97,36 @@ def fetch_user_details(user_table,user_id):
         print(f"Exception occured in {__name__} while fetching user details")
 
 # function to export data to Airtable
+# def export_to_airtable(data):
+#     try:
+#         print(f"\n------------Exporting results to Airtable ------------")
+#         api = Api(AIRTABLE_API_KEY)
+#         airtable_obj = api.table(AIRTABLE_BASE_ID, LEAD_MAGNET_TABLE)
+#         if unique_key_check_airtable('id',data['id'],LEAD_MAGNET_TABLE):
+#             response = airtable_obj.create(data)
+#             print("Record inserted successfully:", response['id'])
+#         else:
+#             print("Record already exists. Skipping the export...:")
+#     except Exception as e:
+#         print(f"Error occured in {__name__} while exporting the data to Airtable. {e}")
+
 def export_to_airtable(data):
     try:
-        print(f"\n------------Exporting results to Airtable ------------")
-        api = Api(AIRTABLE_API_KEY)
-        airtable_obj = api.table(AIRTABLE_BASE_ID, LEAD_MAGNET_TABLE)
-        if unique_key_check_airtable('id',data['id'],LEAD_MAGNET_TABLE):
-            response = airtable_obj.create(data)
-            print("Record inserted successfully:", response['id'])
-        else:
-            print("Record already exists. Skipping the export...:")
+        print("\n------------Exporting results to Airtable ------------")
+
+        airtable_obj = Table(
+            AIRTABLE_API_KEY,
+            AIRTABLE_BASE_ID,
+            LEAD_MAGNET_TABLE
+        )
+
+        response = airtable_obj.create(data)
+        print("Record inserted successfully:", response['id'])
+
     except Exception as e:
-        print(f"Error occured in {__name__} while exporting the data to Airtable. {e}")
+        print(f"Error exporting data to Airtable: {e}")
+
+
 
 def collect_information(linkedin_url):
     try:

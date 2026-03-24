@@ -1020,6 +1020,25 @@ def merge_pdfs_with_appendix(main_pdf_path, appendix_pdf_path, output_pdf_path):
     with open(output_pdf_path, 'wb') as f_out:
         writer.write(f_out)
 
+def normalize_linkedin(url: str) -> str:
+    """
+    Convert all LinkedIn URLs to a normalized format:
+      - force https
+      - remove www
+      - remove trailing slash
+    """
+    if not url:
+        return url
+
+    url = url.strip()
+    # force https
+    url = url.replace("http://", "https://")
+    # remove www.
+    url = url.replace("https://www.", "https://")
+    # remove trailing slash
+    url = url.rstrip("/")
+
+    return url
 
 def generate_lead_magnet_pdf(email, linkedin_url):
     try:
@@ -1072,20 +1091,37 @@ def generate_lead_magnet_pdf(email, linkedin_url):
         # print(json.dumps({
         #     "filterByFormula": f"{{linkedin_url}} = {json.dumps(linkedin_url)}"
         # }, indent=2))
+        # Normalize lookup URL
+        lookup_url = normalize_linkedin(linkedin_url)
 
-        # First: find the record by linkedin_url
         find_response = requests.get(
             airtable_update_url,
             headers=headers,
             params={
-                "filterByFormula": f"FIND({json.dumps(linkedin_url)}, {{linkedin_profile_url}})"
-                
+                "filterByFormula": f"{{linkedin_profile_url}} = {json.dumps(lookup_url)}"
             },
         )
+
+        print("Searching for:", lookup_url)
+        print("Airtable returned:", find_response.json())
+
         records = find_response.json().get("records", [])
         if not records:
             print("No matching record found in Airtable.")
             return "No matching Airtable record"
+        # First: find the record by linkedin_url
+        # find_response = requests.get(
+        #     airtable_update_url,
+        #     headers=headers,
+        #     params={
+        #         "filterByFormula": f"FIND({json.dumps(linkedin_url)}, {{linkedin_profile_url}})"
+                
+        #     },
+        # )
+        # records = find_response.json().get("records", [])
+        # if not records:
+        #     print("No matching record found in Airtable.")
+        #     return "No matching Airtable record"
 
         record_id = records[0]["id"]
 
@@ -1113,7 +1149,7 @@ def generate_lead_magnet_pdf(email, linkedin_url):
 def test_run():
     try:
         output_pdf = "lead_magnet_personalized.pdf"
-        user_id = "sravan.workemail@gmail.com"
+        user_id = "shiblashilu@gmail.com"
         linkedin_url = "http://www.linkedin.com/in/galeapatricia"
         generate_lead_magnet_pdf(user_id,linkedin_url)
         return {"Status":"Successfully created lead magnet pdf"}
@@ -1125,7 +1161,7 @@ if __name__=="__main__":
     # user_id for testing
     user_id = "nadia@cgnet.ae"
     user_id = "timofey.borzov@vtbcapital.com"
-    user_id = "sravan.workemail@gmail.com"
+    user_id = "shiblashilu@gmail.com"
     linkedin_url = "https://www.linkedin.com/in/nikhil-rajput-1a0b4a1b/"
     generate_lead_magnet_pdf(user_id,linkedin_url)
     # print(f"PDF generated and saved at {output_pdf}")
