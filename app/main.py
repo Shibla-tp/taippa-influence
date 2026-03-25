@@ -95,7 +95,7 @@ from pipelines.analytics_of_campaign import scrape_social_post_for_all
 # from pipelines.database_updation import profile_scraper, post_scraper, download_and_upload_profile_pic, download_and_upload_post_media
 from pipelines.data_collection_linkedin import  get_profiles_from_source, process_linkedin_profiles
 from pipelines.data_collection_linkedin_profile_pic import process_all_profile_pics
-
+from pipelines.instagram_campaign_analytics import scrape_social_post_instagram
 print(f"\n =============== Generate : Pipeline started  ===============")
 
 print(f" Directory path for main file: {os.path.dirname(os.path.abspath(__file__))}")
@@ -301,20 +301,66 @@ def update_registered_influencers_all():
     except Exception as e:
         return jsonify({"status": "failed", "error": str(e)})
     
+@app.route("/scrape-post", methods=["GET", "POST"])
+def scrape_post_api():
+    try:
+        # GET → query param
+        if request.method == "GET":
+            campaign_name = request.args.get("campaign_name")
+
+        # POST → JSON body
+        else:
+            data = request.get_json()
+            campaign_name = data.get("campaign_name") if data else None
+
+        if not campaign_name:
+            return jsonify({
+                "status": "error",
+                "message": "Missing 'campaign_name'"
+            }), 400
+
+        # 🔥 Call your bulk function
+        updated = scrape_social_post_instagram(campaign_name)
+
+        return jsonify({
+            "status": "success",
+            "campaign_name": campaign_name,
+            "updated_records": updated
+        })
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+# http://127.0.0.1:5050/update-analytics-post?campaign_name=AJIO-Qatar-Fashion-Apparel-02
 @app.route("/update-analytics-post", methods=["GET", "POST"])
 def update_analytics_post():
     try:
-        updated_records = scrape_social_post_for_all()
+        campaign_name = request.args.get("campaign_name")
+        if not campaign_name:
+            return jsonify({
+                "status": "error",
+                "message": "campaign_name is required"
+            }), 400
+
+        updated_records = scrape_social_post_for_all(campaign_name)
+
         return jsonify({
             "status": "success",
-            "updated_records": updated_records
+            "updated_records": updated_records,
+            "campaign_name": campaign_name
         }), 200
+
     except Exception as e:
         print("❌ Error in update_analytics_post:", e)
         return jsonify({
             "status": "error",
             "message": str(e)
         }), 500
+
 
 # @app.route('/upload-instagram-pics', methods=['GET'])
 # def upload_instagram_pics_get():
