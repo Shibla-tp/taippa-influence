@@ -17,7 +17,8 @@ from config import AIRTABLE_API_KEY, AIRTABLE_BASE_ID
 # CONFIG
 # ==============================
 
-TABLE_NAME = "influencers_linkedin_v3"
+# TABLE_NAME = "influencers_linkedin_v3"
+TABLE_NAME = "influencers_instagram_registered"
 airtable = Airtable(AIRTABLE_BASE_ID, TABLE_NAME, AIRTABLE_API_KEY)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -113,7 +114,7 @@ def process_all_profile_pics():
     try:
         # Fetch only records without attachment
         records = airtable.get_all(
-            formula="AND({linkedin_profile_pic} != '', NOT({saved_profile_pic}))"
+            formula="AND({instagram_profile_pic} != '', NOT({saved_profile_pic}))"
         )
 
         processed = 0
@@ -122,7 +123,7 @@ def process_all_profile_pics():
         for record in records:
             record_id = record["id"]
             fields = record.get("fields", {})
-            profile_pic_url = fields.get("linkedin_profile_pic")
+            profile_pic_url = fields.get("instagram_profile_pic")
 
             if not profile_pic_url:
                 continue

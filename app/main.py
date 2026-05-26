@@ -50,9 +50,7 @@ from email_module.generic_email_module import send_html_email
 from make.email_post_response import email_post_response_tracker
 from make.booking_records_for_taippa import booking_meeting_tracker
 from make.booking_meeting_form_submition import booking_meeting_form_tracker
-from pipelines.data_collection_influencers import data_collection,profile_scraper,post_scraper,add_influencer_to_db
-
-from pipelines.data_collection_influencers import data_collection
+from pipelines.data_collection_influencers import profile_scraper_instagram
 
 from pipelines.smart_query_engine import convert_text_to_sql_v2
 from db.db_influencer import influencer_table_trigger
@@ -92,10 +90,13 @@ from influencers.notion_content_extractor import get_notion_page_text
 from influencers.process_meeting_notes import populate_meeting_notes
 from pipelines.process_external_url import extract_info
 from pipelines.analytics_of_campaign import scrape_social_post_for_all
-# from pipelines.database_updation import profile_scraper, post_scraper, download_and_upload_profile_pic, download_and_upload_post_media
+from pipelines.database_updation import profile_scraper_database_updation, download_and_upload_profile_pic, download_and_upload_post_media
 from pipelines.data_collection_linkedin import  get_profiles_from_source, process_linkedin_profiles
 from pipelines.data_collection_linkedin_profile_pic import process_all_profile_pics
 from pipelines.instagram_campaign_analytics import scrape_social_post_instagram
+from pipelines.tiktok_campaign_analytics import scrape_social_post_tiktok
+from datetime import datetime, timedelta
+from pipelines.brand_outreach_email import process_brand_outreach_email
 print(f"\n =============== Generate : Pipeline started  ===============")
 
 print(f" Directory path for main file: {os.path.dirname(os.path.abspath(__file__))}")
@@ -103,6 +104,11 @@ print('Starting the app')
 app = Flask(__name__)
 # app.register_blueprint(influencer_bp)
 import ast  
+
+@app.route("/process-brand-outreach-email", methods=["GET"])
+def brand_outreach_email():
+    result = process_brand_outreach_email()
+    return jsonify(result)
 
 @app.route("/process-profile-pics", methods=["GET"])
 def process_profile_pics():
@@ -188,121 +194,152 @@ def update_registered_post_urls():
 def update_registered_influencers_all():
 
     try:
-        target_table = Table(
-            AIRTABLE_API_KEY,
-            AIRTABLE_BASE_ID,
-            "influencers_instagram_registered"
-        )
+        # ---------------- AIRTABLE INIT ----------------
+        api = Api(AIRTABLE_API_KEY)
+        target_table = api.table(AIRTABLE_BASE_ID, "influencers_instagram_registered")
 
         records = target_table.all()
-        target_date = "2026-02-16"
+
+        # ✅ ONLY last 14 days records
+        cutoff_date = datetime.now(LOCAL_TZ) - timedelta(days=14)
+
+        print(f"📦 Total Records: {len(records)}")
+        print(f"🎯 Cutoff Date: {cutoff_date}")
 
         for rec in records:
 
-            fields = rec.get("fields", {})
-            record_id = rec.get("id")
-            instagram_handle = fields.get("instagram_username")
-
-            if not instagram_handle:
-                continue
-
-            username = instagram_handle.strip().lstrip("@")
-
-           
-            last_scraped = fields.get("last_scraped_at")
-
-            if not instagram_handle or not last_scraped:
-                continue
-
-            normalized_handle = instagram_handle.strip().lstrip("@")
-
-            # ---- Check if last_scraped_at date matches target_date ----
             try:
-                last_scraped_date = last_scraped.split("T")[0]  # Extract date part only
-            except:
-                last_scraped_date = last_scraped[:10]  # Fallback: take first 10 chars
+                fields = rec.get("fields", {})
+                record_id = rec.get("id")
 
-            if last_scraped_date != target_date:
-                continue  # Skip if date doesn't match
+                instagram_handle = fields.get("instagram_username")
+                # last_scraped = fields.get("last_scraped_at")
+                instagram_post_urls = fields.get("instagram_post_urls")
 
-            print(f"🔄 Updating {normalized_handle} (last_scraped_at date = {target_date})...")
-            # -------- PROFILE --------
+                if not instagram_handle or instagram_post_urls:
+                    continue
 
-            profile_data = profile_scraper(username) or {}
+                username = instagram_handle.strip().lstrip("@")
 
-            profile_drive_link = None
-            if profile_data.get("instagram_profile_pic"):
-                profile_drive_link = download_and_upload_profile_pic(
-                    profile_data["instagram_profile_pic"],
-                    username
+                # # ---------------- PARSE DATE ----------------
+                # try:
+                #     last_scraped_dt = datetime.strptime(last_scraped[:19], "%Y-%m-%d %H:%M:%S")
+                #     last_scraped_dt = LOCAL_TZ.localize(last_scraped_dt)
+                # except:
+                #     continue
+
+                # if last_scraped_dt > cutoff_date:
+                #     continue
+
+                print(f"🔄 Updating: {username}")
+
+                # =====================================================
+                # PROFILE SCRAPER (ASYNC FIX)
+                # =====================================================
+                profile_results = asyncio.get_event_loop().run_until_complete(
+                    profile_scraper_database_updation([username])
                 )
 
-            # -------- POSTS --------
+                profile_data = profile_results[0] if profile_results else {}
 
-            post_data = post_scraper(username, 5) or {}
+                # =====================================================
+                # PROFILE PIC UPLOAD
+                # =====================================================
+                profile_drive_link = None
+                if profile_data.get("instagram_profile_pic"):
+                    profile_drive_link = download_and_upload_profile_pic(
+                        profile_data["instagram_profile_pic"],
+                        username
+                    )
 
-            media_urls = ast.literal_eval(
-                post_data.get("instagram_video_urls", "[]")
-            )
+                # =====================================================
+                # POST SCRAPER
+                # =====================================================
+                # post_data = post_scraper(username, 5) or {}
 
-            post_drive_links = []
+                # media_urls = ast.literal_eval(
+                #     post_data.get("instagram_video_urls", "[]")
+                # )
 
-            for idx, media_url in enumerate(media_urls, start=1):
-                link = download_and_upload_post_media(
-                    media_url,
-                    username,
-                    idx
-                )
-                if link:
-                    post_drive_links.append(link)
-                time.sleep(1)
+                post_drive_links = []
 
-            # -------- UPDATE AIRTABLE --------
+                # for idx, media_url in enumerate(media_urls, start=1):
+                #     link = download_and_upload_post_media(
+                #         media_url,
+                #         username,
+                #         idx
+                #     )
+                #     if link:
+                #         post_drive_links.append(link)
+                #     time.sleep(1)
 
-            update_data = {
+                # =====================================================
+                # UPDATE AIRTABLE DATA
+                # =====================================================
+                update_data = {
+                    "instagram_bio": str(profile_data.get("instagram_bio", "")),
+                    "instagram_profile_pic": str(profile_data.get("instagram_profile_pic", "")),
 
-                # Profile info
-                "instagram_bio": str(profile_data.get("instagram_bio", "")),
-                "instagram_profile_pic": str(profile_data.get("instagram_profile_pic", "")),
+                    "downloadable_profile_pic": str(profile_drive_link or ""),
 
-                # Drive link (text field)
-                "downloadable_profile_pic": str(profile_drive_link or ""),
+                    "saved_profile_pic": (
+                        [{"url": profile_drive_link}]
+                        if profile_drive_link else []
+                    ),
 
-                # ✅ Attachment field (MUST be type: Attachment in Airtable)
-                "saved_profile_pic": (
-                    [{"url": profile_drive_link}]
-                    if profile_drive_link else []
-                ),
+                    "instagram_followers_count": str(profile_data.get("instagram_followers_count", "")),
+                    "instagram_follows_count": str(profile_data.get("instagram_follows_count", "")),
+                    "instagram_posts_count": str(profile_data.get("instagram_posts_count", "")),
+                    "engagement_rate": str(profile_data.get("engagement_rate_percent", "")),
 
-                "instagram_followers_count": str(profile_data.get("instagram_followers_count", "")),
-                "instagram_follows_count": str(profile_data.get("instagram_follows_count", "")),
-                "instagram_posts_count": str(profile_data.get("instagram_posts_count", "")),
+                    "instagram_video_urls": str(post_data.get("instagram_video_urls", "")),
+                    "instagram_comments_counts": str(post_data.get("instagram_comments_counts", "")),
+                    "instagram_likes_counts": str(post_data.get("instagram_likes_counts", "")),
+                    "instagram_video_play_counts": str(post_data.get("instagram_video_play_counts", "")),
 
-                # Posts info
-                "instagram_video_urls": str(post_data.get("instagram_video_urls", "")),
-                "instagram_comments_counts": str(post_data.get("instagram_comments_counts", "")),
-                "instagram_likes_counts": str(post_data.get("instagram_likes_counts", "")),
-                "instagram_video_play_counts": str(post_data.get("instagram_video_play_counts", "")),
+                    "avg_likes": str(profile_data.get("average_likes", "")),
+                    "avg_comments": str(profile_data.get("average_comments", "")),
+                    "avg_video_play_counts": str(profile_data.get("average_views", "")),
+                    "videos_engagement": str(profile_data.get("average_views", "")),
 
-                "avg_likes": str(post_data.get("avg_likes", "")),
-                "avg_comments": str(post_data.get("avg_comments", "")),
-                "avg_video_play_counts": str(post_data.get("avg_video_play_counts", "")),
-                "videos_engagement": str(post_data.get("avg_video_play_counts", "")),
+                    # "drive_post_links": str(post_drive_links),
 
-                "drive_post_links": str(post_drive_links),
+                    "last_scraped_at": datetime.now(LOCAL_TZ).strftime("%Y-%m-%d %H:%M:%S")
+                }
 
-                "last_scraped_at": datetime.now(LOCAL_TZ).strftime("%Y-%m-%d %H:%M:%S")
-            }
+                # ---------------- AIRTABLE UPDATE ----------------
+                target_table.update(record_id, update_data)
 
-            target_table.update(record_id, update_data)
+                print(f"✅ Updated: {username}")
+
+            except Exception as inner_error:
+                print(f"❌ Error processing record {rec.get('id')}: {inner_error}")
+                continue
 
         return jsonify({"status": "success"})
 
     except Exception as e:
         return jsonify({"status": "failed", "error": str(e)})
-    
+
+@app.route("/scrape_tiktok", methods=["GET", "POST"])
+def scrape_social():
+    if request.method == "GET":
+        campaign_name = request.args.get("campaign_name")
+    else:  # POST
+        campaign_name = request.json.get("campaign_name")
+
+    if not campaign_name:
+        return jsonify({"status": "error", "message": "campaign_name missing"}), 400
+
+    updated = scrape_social_post_tiktok(campaign_name)
+    return jsonify({
+        "campaign_name": campaign_name,
+        "status": "success",
+        "updated_records": updated
+    })
+
 @app.route("/scrape-post", methods=["GET", "POST"])
-def scrape_post_api():
+def scrape_instagram_post_api():
     try:
         # GET → query param
         if request.method == "GET":
@@ -802,36 +839,36 @@ def update_registered_influencers():
 
             # ---- PROFILE SCRAPER ----
             try:
-                profile_data = profile_scraper(
-                    normalized_handle,
-                    influencer_type=fields.get("brands_collaborated"),
-                    influencer_location=fields.get("influencer_location")
-                ) or {}
+                profile_results = asyncio.get_event_loop().run_until_complete(
+                    profile_scraper_database_updation([normalized_handle])
+                )
+
+                profile_data = profile_results[0] if profile_results else {}
             except Exception as e:
                 print(f"Profile error for {normalized_handle}: {e}")
                 continue
 
-            # ---- POST SCRAPER ----
-            try:
-                followers_count = profile_data.get("instagram_followers_count") or 1
-                post_data = post_scraper(
-                    normalized_handle,
-                    posts_count=5,
-                    followers_count=int(followers_count)
-                ) or {}
-            except Exception as e:
-                print(f"Post error for {normalized_handle}: {e}")
-                post_data = {}
+            # # ---- POST SCRAPER ----
+            # try:
+            #     followers_count = profile_data.get("instagram_followers_count") or 1
+            #     post_data = post_scraper(
+            #         normalized_handle,
+            #         posts_count=5,
+            #         followers_count=int(followers_count)
+            #     ) or {}
+            # except Exception as e:
+            #     print(f"Post error for {normalized_handle}: {e}")
+            #     post_data = {}
 
-            # ---- ENGAGEMENT RATE ----
-            try:
-                engagement_info = asyncio.get_event_loop().run_until_complete(
-                    get_engagement_rate([normalized_handle])
-                )
-                engagement_rate = engagement_info[0].get("engagement_rate_pct", 0) if engagement_info else 0
-            except Exception as e:
-                print(f"Engagement fetch failed for {normalized_handle}: {e}")
-                engagement_rate = 0
+            # # ---- ENGAGEMENT RATE ----
+            # try:
+            #     engagement_info = asyncio.get_event_loop().run_until_complete(
+            #         get_engagement_rate([normalized_handle])
+            #     )
+            #     engagement_rate = engagement_info[0].get("engagement_rate_pct", 0) if engagement_info else 0
+            # except Exception as e:
+            #     print(f"Engagement fetch failed for {normalized_handle}: {e}")
+            #     engagement_rate = 0
 
             # ---- BUILD UPDATE DATA ----
             update_data = {
@@ -842,18 +879,27 @@ def update_registered_influencers():
                 "instagram_follows_count": str(profile_data.get("instagram_follows_count", "")),
                 "instagram_posts_count": str(profile_data.get("instagram_posts_count", "")),
 
-                # Post Info
-                "instagram_comments_counts": str(post_data.get("instagram_comments_counts", "")),
-                "instagram_likes_counts": str(post_data.get("instagram_likes_counts", "")),
-                "instagram_video_play_counts": str(post_data.get("instagram_video_play_counts", "")),
-                "instagram_video_urls": str(post_data.get("instagram_video_urls", "")),
-                "avg_likes": str(post_data.get("avg_likes", "")),
-                "avg_comments": str(post_data.get("avg_comments", "")),
-                "avg_video_play_counts": str(post_data.get("avg_video_play_counts", "")),
-                "videos_engagement": str(post_data.get("estimated_reach", "")),
+                "instagram_captions": profile_data.get("instagram_captions", ""),
+                "instagram_hashtags": profile_data.get("instagram_hashtags", ""),
+                "instagram_post_urls": profile_data.get("instagram_post_urls", ""),
+                "instagram_comments_counts": profile_data.get("instagram_comments_counts", ""),
+                "instagram_likes_counts": profile_data.get("instagram_likes_counts", ""),
+                "instagram_video_play_counts": profile_data.get("instagram_video_play_counts", ""),
+                "instagram_video_urls": profile_data.get("instagram_video_urls", ""),
+                "downloadable_profile_pic": profile_data.get("downloadable_profile_pic", ""),
+                "saved_profile_pic": profile_data.get("saved_profile_pic", []),
+                "engagement_rate_flag": profile_data.get("engagement_rate_flag", ""),
+                # # Post Info
+                # "instagram_comments_counts": str(post_data.get("instagram_comments_counts", "")),
+                # "instagram_likes_counts": str(post_data.get("instagram_likes_counts", "")),
+                # "instagram_video_play_counts": str(post_data.get("instagram_video_play_counts", "")),
+                # "instagram_video_urls": str(post_data.get("instagram_video_urls", "")),
+                # "avg_likes": str(post_data.get("avg_likes", "")),
+                # "avg_comments": str(post_data.get("avg_comments", "")),
+                # "avg_video_play_counts": str(post_data.get("avg_video_play_counts", "")),
+                # "videos_engagement": str(post_data.get("estimated_reach", "")),
 
-                # Engagement Rate
-                "engagement_rate": str(engagement_rate),
+                
 
                 # Timestamp for last scrape (local time)
                 "last_scraped_at": datetime.now(LOCAL_TZ).strftime("%Y-%m-%d %H:%M:%S")
@@ -1003,135 +1049,72 @@ def update_registered_influencers():
 #         return jsonify({"status": "failed", "error": str(e)})
 
 
+
+
+
 @app.route("/registered_influencers_pipeline", methods=["GET"])
 def registered_influencers_pipeline_v2():
     try:
         source_table = Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, "registered_influencers_v3")
         target_table = Table(AIRTABLE_API_KEY, AIRTABLE_BASE_ID, "influencers_instagram_registered")
 
-        source_records = source_table.all()
+        records = source_table.all()
 
-        for record in source_records:
+        for record in records:
             fields = record.get("fields", {})
-            instagram_handle = fields.get("instagram_handle_name")
+            username = fields.get("instagram_handle_name", "").strip().lstrip("@")
 
-            if not instagram_handle:
+            if not username:
                 continue
 
-            normalized_handle = instagram_handle.strip().lstrip("@")
-            if not normalized_handle:
-                continue
-
-            existing = target_table.all(formula=f"{{instagram_username}}='{normalized_handle}'")
-            if existing:
-                print(f"Skipping {normalized_handle}, already exists.")
-                continue
-
-            print(f"🚀 Starting pipeline for {normalized_handle}...")
-
-            # ---- PROFILE SCRAPER ----
-            profile_results = asyncio.get_event_loop().run_until_complete(
-                profile_scraper([normalized_handle])
+            existing = target_table.all(
+                formula=f"{{instagram_username}}='{username}'"
             )
 
-            if not profile_results:
-                print(f"No profile data for {normalized_handle}")
+            if existing:
+                print(f"⏭ Skipping {username}, already exists")
                 continue
 
-            profile_data = profile_results[0]   # because it returns a list
+            print(f"\n🚀 Processing: {username}")
 
-            # ---- POST SCRAPER ----
-            try:
-                followers_count = profile_data.get("instagram_followers_count") or 1
-                post_data = post_scraper(
-                    normalized_handle,
-                    posts_count=5,
-                    followers_count=int(followers_count)
-                ) or {}
-                
-            except Exception as e:
-                print(f"Post error for {normalized_handle}: {e}")
-                post_data = {}
+            # -------- SCRAPER --------
+            results = asyncio.get_event_loop().run_until_complete(
+                profile_scraper_instagram([username])
+            )
 
-            # ---- ENGAGEMENT RATE (ASYNC) ----
-            # try:
-            #     engagement_info = asyncio.get_event_loop().run_until_complete(
-            #         get_engagement_rate([normalized_handle])
-            #     )
-            #     engagement_rate = engagement_info[0].get("engagement_rate_pct", 0) if engagement_info else 0
-            # except Exception as e:
-            #     print(f"Engagement fetch failed for {normalized_handle}: {e}")
-            #     engagement_rate = 0
+            if not results:
+                print(f"❌ No data for {username}")
+                continue
 
-            # post_data["engagement_rate"] = engagement_rate
-            # try:
-            #     engagement_info = asyncio.get_event_loop().run_until_complete(
-            #         get_engagement_rate([normalized_handle])
-            #     )
+            profile = results[0]
 
-            #     if engagement_info:
-            #         engagement_item = engagement_info[0]
-            #         engagement_rate = engagement_item.get("engagement_rate", 0)
-            #         avg_likes = engagement_item.get("average_likes", "")
-            #         avg_comments = engagement_item.get("average_comments", "")
-            #         avg_views = engagement_item.get("average_views", "")
-            #     else:
-            #         engagement_rate = 0
-            #         avg_likes = avg_comments = avg_views = ""
+            # -------- BUILD DATA --------
+            data = {
+                "instagram_url": profile.get("instagram_url", ""),
+                "instagram_username": username,
+                "full_name": fields.get("first_name", "") or "",
+                "instagram_bio": profile.get("instagram_bio", ""),
+                "external_urls": profile.get("external_urls", ""),
+                "instagram_profile_pic": profile.get("instagram_profile_pic", ""),
+                "instagram_followers_count": profile.get("instagram_followers_count", ""),
+                "instagram_follows_count": profile.get("instagram_follows_count", ""),
+                "instagram_posts_count": profile.get("instagram_posts_count", ""),
 
-            # except Exception as e:
-            #     print(f"❌ Engagement fetch failed for {normalized_handle}: {e}")
-            #     engagement_rate = 0
-            #     avg_likes = avg_comments = avg_views = ""
+                "avg_likes": profile.get("avg_likes", ""),
+                "avg_comments": profile.get("avg_comments", ""),
+                "avg_video_play_counts": profile.get("avg_video_play_counts", ""),
+                "engagement_rate": profile.get("engagement_rate", ""),
 
-            # ---- BUILD OUTPUT RECORD ----
-            combined_data = {}
+                "instagram_captions": profile.get("instagram_captions", ""),
+                "instagram_hashtags": profile.get("instagram_hashtags", ""),
+                "instagram_post_urls": profile.get("instagram_post_urls", ""),
+                "instagram_comments_counts": profile.get("instagram_comments_counts", ""),
+                "instagram_likes_counts": profile.get("instagram_likes_counts", ""),
+                "instagram_video_play_counts": profile.get("instagram_video_play_counts", ""),
+                "instagram_video_urls": profile.get("instagram_video_urls", ""),
+                "downloadable_profile_pic": profile.get("downloadable_profile_pic", ""),
+                "saved_profile_pic": profile.get("saved_profile_pic", []),
 
-            # --- PROFILE FIELDS ---
-            combined_data.update({
-                "instagram_url": str(profile_data.get("instagram_url", "")),
-                "instagram_username": str(normalized_handle),
-                # "full_name": str(profile_data.get("full_name", "")),
-                "instagram_bio": str(profile_data.get("instagram_bio", "")),
-                "external_urls": str(profile_data.get("external_urls", "")),
-                "instagram_followers_count": str(profile_data.get("instagram_followers_count", "")),
-                "instagram_follows_count": str(profile_data.get("instagram_follows_count", "")),
-                "business_category_name": str(profile_data.get("business_category_name", "")),
-                "instagram_profile_pic": str(profile_data.get("instagram_profile_pic", "")),
-                "instagram_posts_count": str(profile_data.get("instagram_posts_count", "")),
-                "influencer_location": str(profile_data.get("influencer_location", "")),
-                
-                "avg_likes": str(profile_data.get("average_likes", "")),
-                "avg_comments": str(profile_data.get("average_comments", "")),
-                "avg_video_play_counts": str(profile_data.get("average_views", "")),
-                "engagement_rate": str(profile_data.get("engagement_rate_percent", "")),
-                "videos_engagement": str(profile_data.get("average_views", "")),
-                "influencer_nationality": str(fields.get("nationality", "")),
-            })
-
-            # --- POST FIELDS ---
-            combined_data.update({
-                "instagram_captions": str(post_data.get("instagram_captions", "")),
-                "instagram_hashtags": str(post_data.get("instagram_hashtags", "")),
-                "instagram_post_urls": str(post_data.get("instagram_post_urls", "")),
-                "instagram_comments_counts": str(post_data.get("instagram_comments_counts", "")),
-                "instagram_likes_counts": str(post_data.get("instagram_likes_counts", "")),
-                "instagram_video_urls": str(post_data.get("instagram_video_urls", "")),
-                "instagram_video_play_counts": str(post_data.get("instagram_video_play_counts", "")),
-                # "avg_comments": str(post_data.get("avg_comments", "")),
-                # "avg_likes": str(post_data.get("avg_likes", "")),
-                # "avg_video_play_counts": str(post_data.get("avg_video_play_counts", "")),
-                # "avg_likes": str(avg_likes),
-                # "avg_comments": str(avg_comments),
-                # "avg_video_play_counts": str(avg_views),
-                # "engagement_rate": str(engagement_rate),
-                # "videos_engagement": str(avg_views),
-                # "engagement_rate": str(post_data.get("engagement_rate", "")),
-                # "videos_engagement": str(post_data.get("estimated_reach", "")),
-            })
-
-            # --- SOURCE FIELDS ---
-            combined_data.update({
                 "brands_collaborated": str(fields.get("brands_collaborated", "")),
                 "countries_in_bio": str(fields.get("country", "")),
                 "email_id": str(fields.get("email", "")),
@@ -1142,18 +1125,27 @@ def registered_influencers_pipeline_v2():
                 "snapchat_id": str(fields.get("snap_handle_name", "")),
                 "tiktok_id": str(fields.get("tiktok_handle_name", "")),
                 "twitter_id": str(fields.get("twitter_handle_name", "")),
-                "full_name": str(fields.get("first_name", "")),
-            })
+                "engagement_rate_flag": profile.get("engagement_rate_flag", "")
+            }
 
-            response = target_table.create(combined_data)
-            print(f"✅ Inserted {normalized_handle} → {response['id']}")
+            # -------- DEBUG --------
+            print("\n📤 DATA TO AIRTABLE:")
+            for k, v in data.items():
+                print(f"{k}: {type(v)} → {str(v)[:80]}")
 
-        return {"status": "passed", "message": "Pipeline executed successfully"}
+            # -------- INSERT --------
+            try:
+                response = target_table.create(data)
+                print(f"✅ Inserted {username}: {response['id']}")
+            except Exception as e:
+                print(f"❌ Airtable Insert Failed for {username}")
+                print("Error:", e)
+
+        return {"status": "success"}
 
     except Exception as e:
-        print(f"❌ Error in pipeline: {e}")
-        return {"status": "failed", "error": str(e)}
-
+        print(f"❌ Pipeline Error: {e}")
+        return {"status": "error", "message": str(e)}
     
 # @app.route("/registered_influencers_pipeline", methods=["GET"]) 
 # def registered_influencers_pipeline_v2():
