@@ -13,15 +13,15 @@ from config import AIRTABLE_API_KEY, AIRTABLE_BASE_ID
 # ─────────────────────────────────────────────
 SMTP_HOST  = "smtp.gmail.com"
 SMTP_PORT  = 587
-SMTP_USER  = "shibla@taippa.com"
-SMTP_PASS  = "hnvm oxbs pufr hobm"   # Gmail App Password
+SMTP_USER  = "urmi@taippa.com"
+SMTP_PASS  = "kmzl jfwj xemy idkv"   # Gmail App Password
 
-FROM_NAME  = "Shibla @ TAIPPA Influence"
-FROM_EMAIL = "shibla@taippa.com"
+FROM_NAME  = "Urmi @ TAIPPA Influence"
+FROM_EMAIL = "urmi@taippa.com"
 SUBJECT    = "We made it free."
 
 
-AIRTABLE_TABLE   = "influencer_outreach"
+AIRTABLE_TABLE   = "brand_outreach"
 
 # Airtable field names
 FIELD_EMAIL      = "email_id"       # recipient email
@@ -199,9 +199,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   </div>
 
   <div class="footer">
-    <p class="footer-name">Shibla</p>
+    <p class="footer-name">Urmi</p>
     <p class="footer-role">TAIPPA Influence</p>
-    <a href="mailto:shibla@taippa.com" class="footer-email">shibla@taippa.com</a>
+    <a href="mailto:urmi@taippa.com" class="footer-email">shibla@taippa.com</a>
     <p class="footer-url">app.taippa.com</p>
   </div>
 
