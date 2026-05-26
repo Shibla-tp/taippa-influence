@@ -51,7 +51,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .logo-text {{ color: white; font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }}
   .logo-sub {{ color: rgba(255,255,255,0.4); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-top: 1px; }}
   .body {{ padding: 40px; }}
-  .greeting {{ font-size: 15px; color: #6B7280; margin: 0 0 24px; }}
+  .greeting {{ font-size: 15px; color: #111827; margin: 0 0 24px; }}
   .hook {{ font-size: 15px; color: #111827; line-height: 1.75; margin: 0 0 8px; }}
   .hook-q {{ font-size: 15px; color: #374151; line-height: 1.75; margin: 0 0 4px; padding-left: 16px; font-style: italic; }}
   .answer {{ font-size: 16px; font-weight: 600; color: #111827; margin: 20px 0; line-height: 1.75; }}
@@ -201,7 +201,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <div class="footer">
     <p class="footer-name">Urmi</p>
     <p class="footer-role">TAIPPA Influence</p>
-    <a href="mailto:urmi@taippa.com" class="footer-email">shibla@taippa.com</a>
+    <a href="mailto:urmi@taippa.com" class="footer-email">urmi@taippa.com</a>
     <p class="footer-url">app.taippa.com</p>
   </div>
 
