@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Influencer Table</title>
+
+    <!-- DataTables & Buttons -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css" />
+
+    <!-- Select2 -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        h2 { color: #fff; }
+        .filter-wrapper {
+            overflow-x: auto;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+        }
+        .filters {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 15px;
+            min-width: max-content;
+            margin-bottom: 20px;
+        }
+        .filters > div {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .filters label {
+            font-size: 14px;
+            color: white;
+            background-color: transparent;
+            padding: 0;
+            border: none;
+            border-radius: 0;
+            margin: 0;
+            user-select: none;
+        }
+        .filters select,
+        .filters input {
+            margin-right: 15px;
+            font-size: 14px;
+            color: #ddd;
+            background-color: #222;
+            border: 1px solid #444;
+            padding: 5px 8px;
+            border-radius: 4px;
+        }
+        .filters label { user-select: none; }
+        .select2-container--default .select2-selection--multiple {
+            background-color: #222;
+            border: 1px solid #444;
+            color: #eee;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background-color: #444;
+            color: black !important;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: #bbb;
+        }
+        .select2-container--default .select2-results > .select2-results__options {
+            background-color: #1e2a38;  /* Your new color */
+            color: #fff;
+        }
+
+        table.dataTable {
+            border-collapse: collapse;
+            width: 100%;
+            background-color: #222;
+            color: #eee;
+        }
+        table.dataTable thead { background-color: #333; }
+        table.dataTable thead th {
+            color: #fff;
+            border-bottom: 1px solid #444;
+        }
+        table.dataTable tbody tr { border-bottom: 1px solid #444; }
+        table.dataTable tbody tr:hover { background-color: #333; }
+        table.dataTable tbody td { color: #ddd; }
+        table.dataTable td img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 1px solid #555;
+        }
+        .dt-button {
+            background-color: #333 !important;
+            color: #eee !important;
+            border: 1px solid #555 !important;
+            border-radius: 4px !important;
+            padding: 5px 10px !important;
+            cursor: pointer;
+        }
+        .dt-button:hover {
+            background-color: #555 !important;
+            color: #fff !important;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 999;
+            padding-top: 60px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+        .modal-content {
+            margin: auto;
+            display: block;
+            width: 60%;
+            max-width: 700px;
+            border: 3px solid #444;
+            border-radius: 8px;
+        }
+        .close {
+            position: absolute;
+            right: 35px;
+            top: 20px;
+            color: #ccc;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+        }
+        .close:hover { color: #fff; }
+        .select2-container { min-width: 200px; }
+        .hashtag-toggle {
+            cursor: pointer;
+            user-select: none;
+            color: #aad4ff;
+        }
+        /* DataTables toolbar alignment */
+        .dataTables_wrapper .dataTables_filter {
+            float: right;
+            text-align: right;
+        }
+        .dataTables_wrapper .dt-buttons {
+            float: right;
+            margin-right: 10px;
+        }
+        .dataTables_wrapper .top-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .dataTables_wrapper .dataTables_length {
+            margin-right: auto;
+        }
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+                font-size: 14px;
+            }
+            h2 { font-size: 1.2em; }
+            .filters {
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
+                align-items: stretch;
+            }
+            .filters > div { width: 100%; }
+            table.dataTable { font-size: 12px; }
+            .dt-button {
+                padding: 3px 6px !important;
+                font-size: 12px !important;
+            }
+            .select2-container {
+                min-width: 100px;
+                width: 100% !important;
+            }
+            .modal-content { width: 95%; }
+            .dataTables_wrapper .top-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .dataTables_wrapper .dt-buttons,
+            .dataTables_wrapper .dataTables_filter,
+            .dataTables_wrapper .dataTables_length {
+                float: none;
+                margin: 5px 0;
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>Influencer Data</h2>
+    <div class="filters">
+        <div>
+            <label for="typeFilter">Influencer Type:</label>
+            <select id="typeFilter" multiple="multiple"></select>
+        </div>
+        <div>
+            <label for="domainFilter">Targeted Domain:</label>
+            <select id="domainFilter" multiple="multiple"></select>
+        </div>
+        <div>
+            <label for="locationFilter">Influencer Location:</label>
+            <select id="locationFilter" multiple="multiple"></select>
+        </div>
+        <div>
+            <label for="audienceFilter">Targeted Audience:</label>
+            <select id="audienceFilter" multiple="multiple"></select>
+        </div>
+        <div>
+            <label for="minFollowers">Followers:</label>
+            <input type="number" id="minFollowers" placeholder="Min" min="0" />
+        </div>
+        <div>
+            <input type="number" id="maxFollowers" placeholder="Max" min="0" />
+        </div>
+        
+    </div>
+    <div class="filters">
+        
+        <div>
+            <label for="tiktokUsernameFilter">TikTok Username:</label>
+            <select id="tiktokUsernameFilter" multiple="multiple"></select>
+        </div>
+        <div>
+            <label for="tiktokNicheFilter">TikTok Niche:</label>
+            <select id="tiktokNicheFilter" multiple="multiple"></select>
+        </div>
+        <div>
+            <label for="minTiktokFollowers">TikTok Followers:</label>
+            <input type="number" id="minTiktokFollowers" placeholder="Min" min="0" />
+        </div>
+        <div>
+            <input type="number" id="maxTiktokFollowers" placeholder="Max" min="0" />
+        </div>
+
+    </div>
+    <table id="influencerTable" class="display nowrap" style="width:100%">
+        <thead>
+            <tr>
+                <th>Full Name</th>
+                <th>Instagram Username</th>
+                <th>Influencer Type</th>
+                <th>Targeted Audience</th>
+                <th>Targeted Domain</th>
+                <th>Instagram Bio</th>
+                <th>Instagram  Followers</th>
+                <th>Instagram Follows</th>
+                <th>Instagram Posts</th>
+                <th>Instagram Captions</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Instagram Videos</th>
+                <th>Instagram Hashtags</th>
+                <th>Instagram Profile Link</th>
+                <th>Business Category</th>
+                <th>Influencer Location</th>
+                <th>Influencer Nationality</th>
+                <th>Likes</th>
+                <th>Comments</th>
+                <th>Created Time</th>
+                <th>Estimated Reach</th>
+                <th>Engagement Rate (%)</th>
+                <th>Tiktok Url</th>
+                <th>Tiktok Username</th>
+                <th>Tiktok Bio</th>
+                <th>Tiktok Followers</th>
+                <th>Tiktok Follows</th>
+                <th>Tiktok Profile Pic</th>
+                <th>Tiktok likes</th>
+                <th>Tiktok Videos Count</th>
+                <th>Tiktok Videos</th>
+                <th>Tiktok Play Count</th>
+                <th>Tiktok Share Count</th>
+                <th>Tiktok Comments Count</th>
+                <th>Tiktok Text</th>
+                <th>Tiktok Niche</th>
+                <th>Tiktok Language used</th>
+                <th>Tiktok Content Type</th>
+                <th>Tiktok Content Style</th>
+                <th>Tiktok Suitable Brands</th>                
+                <th>Tiktok Summary</th>
+                
+                <th></th>
+
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <div id="imgModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modalImage" />
+    </div>
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        let table;
+
+        function shortenText(text, maxLen = 40) {
+            if (!text) return '';
+            return text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
+        }
+
+        function escapeHtml(text) {
+            return $('<div>').text(text).html();
+        }
+
+        function createToggleSpan(fullText, color = '#aad4ff') {
+            const shortText = shortenText(fullText);
+            const escapedFull = escapeHtml(fullText);
+            const escapedShort = escapeHtml(shortText);
+            return `<span class="hashtag-toggle" style="cursor:pointer; color:${color};" 
+                          data-full="${escapedFull}" data-short="${escapedShort}" onclick="toggleHashtag(this)">
+                        ${escapedShort}
+                    </span>`;
+        }
+
+        // Utility: Sum array or comma-separated string, robust to bad data
+        function sumValues(val) {
+            if (Array.isArray(val)) {
+                return val
+                    .map(Number)
+                    .filter(n => !isNaN(n))
+                    .reduce((a, b) => a + b, 0);
+            } else if (typeof val === 'string') {
+                if (val.trim() === '') return 0;
+                if (val.indexOf(',') !== -1) {
+                    return val
+                        .split(',')
+                        .map(Number)
+                        .filter(n => !isNaN(n))
+                        .reduce((a, b) => a + b, 0);
+                }
+                return Number(val) || 0;
+            } else if (typeof val === 'number') {
+                return isNaN(val) ? 0 : val;
+            } else {
+                return 0;
+            }
+        }
+
+
+
+        $(document).ready(function () {
+            $('#typeFilter, #domainFilter, #locationFilter, #audienceFilter').select2({
+                placeholder: 'Select...',
+                allowClear: true,
+                width: 'resolve'
+            });
+
+            fetch('/api/influencers')
+                .then((res) => res.json())
+                .then((data) => {
+                    populateFilters(data);
+                    table = $('#influencerTable').DataTable({
+                        data: data,
+                        columns: [
+                            { data: 'full_name' },
+                            { data: 'instagram_username' },
+                            { data: 'influencer_type' },
+                            { data: 'targeted_audience' },
+                            { data: 'targeted_domain' },
+                            { data: 'instagram_bio' },
+                            { data: 'instagram_followers_count' },
+                            { data: 'instagram_follows_count' },
+                            { data: 'instagram_posts_count' },
+                            {
+                                data: 'instagram_captions',
+                                render: (data) => createToggleSpan(data, '#aad4ff'),
+                            },
+                            { data: 'email_id' },
+                            { data: 'phone' },
+                            {
+                                data: 'instagram_video_urls',
+                                render: (data) => createToggleSpan(data, '#aad4ff'),
+                            },
+                            {
+                                data: 'instagram_hashtags',
+                                render: (data) => createToggleSpan(data, '#aad4ff'),
+                            },
+                            {data : 'instagram_url'},
+                            { data: 'business_category_name' },
+                            { data: 'influencer_location' },
+                            { data: 'influencer_nationality' },
+                            { data: 'instagram_likes_counts' },
+                            { data: 'instagram_comments_counts' },
+                            {
+                                data: 'created_time',
+                                render: (data) =>
+                                    data ? new Date(data).toLocaleString() : '',
+                            },
+                           
+                            // Estimated Reach
+                            {
+                                data: null,
+                                render: function (data, type, row) {
+                                    const followers = parseInt(row.instagram_followers_count) || 0;
+                                    return Math.round(followers * 0.3).toLocaleString();
+                                }
+                            },
+                            
+                            {
+                                data: null,
+                                render: function (data, type, row) {
+                                    const followers = parseInt(row.instagram_followers_count) || 0;
+
+                                    // Parse likes and comments as arrays (handle string or array)
+                                    let likesArr = [];
+                                    let commentsArr = [];
+                                    if (Array.isArray(row.instagram_likes_counts)) {
+                                        likesArr = row.instagram_likes_counts;
+                                    } else if (typeof row.instagram_likes_counts === 'string' && row.instagram_likes_counts.indexOf(',') !== -1) {
+                                        likesArr = row.instagram_likes_counts.split(',');
+                                    } else if (typeof row.instagram_likes_counts === 'string' && row.instagram_likes_counts.trim() !== '') {
+                                        likesArr = [row.instagram_likes_counts];
+                                    }
+
+                                    if (Array.isArray(row.instagram_comments_counts)) {
+                                        commentsArr = row.instagram_comments_counts;
+                                    } else if (typeof row.instagram_comments_counts === 'string' && row.instagram_comments_counts.indexOf(',') !== -1) {
+                                        commentsArr = row.instagram_comments_counts.split(',');
+                                    } else if (typeof row.instagram_comments_counts === 'string' && row.instagram_comments_counts.trim() !== '') {
+                                        commentsArr = [row.instagram_comments_counts];
+                                    }
+
+                                    // Always use the last 5 posts (or fewer if less data is available)
+                                    const last5Likes = likesArr.slice(-5);
+                                    const last5Comments = commentsArr.slice(-5);
+
+                                    const likes = sumValues(last5Likes);
+                                    const comments = sumValues(last5Comments);
+                                    const numPosts = Math.max(last5Likes.length, last5Comments.length, 1);
+
+                                    const avgEngagement = (likes + comments) / numPosts;
+                                    if (followers === 0) return '0%';
+                                    const rate = (avgEngagement / followers) * 100;
+                                    return isNaN(rate) ? '0%' : rate.toFixed(2) + '%';
+                                }
+                            },
+                            { data: 'tiktok_url' },
+                            { data: 'tiktok_username' },
+                            { data: 'tiktok_bio' },
+                            { data: 'tiktok_followers_count' },
+                            { data: 'tiktok_follows_count' },
+                            { data: 'tiktok_profile_pic' },
+                            { data: 'tiktok_likes_count' },
+                            { data: 'tiktok_videos_count' },
+                            
+                            {
+                                data: 'tiktok_video_urls',
+                                render: (data) => createToggleSpan(data, '#aad4ff'),
+                            },
+                            { data: 'tiktok_play_count' },
+                            { data: 'tiktok_share_count' },
+                            { data: 'tiktok_comment_count' },
+                            
+                            {
+                                data: 'tiktok_text',
+                                render: (data) => createToggleSpan(data, '#aad4ff'),
+                            },
+                            { data: 'tiktok_niche' },
+                            { data: 'tiktok_language_used' },
+                            { data: 'tiktok_content_type' },
+                            { data: 'tiktok_audience_location' },
+                            { data: 'tiktok_content_style' },
+                            { data: 'tiktok_suitable_brands' },
+                            {
+                                data: 'tiktok_text',
+                                render: (data) => createToggleSpan(data, '#aad4ff'),
+                            },
+                            
+                            
+                        ],
+                        dom: "<'top-row'<'dataTables_length'l><'dt-buttons'B><'dataTables_filter'f>>" +
+                             "<'row'<'col-sm-12'tr>>" +
+                             "<'row'<'col-sm-5'i><'col-sm-7'p>>",
+                        buttons: ['csv'],
+                        pageLength: 25,
+                        responsive: true,
+                    });
+
+                    $('#typeFilter, #domainFilter, #locationFilter, #audienceFilter, #minFollowers, #maxFollowers').on(
+                        'change keyup',
+                        function () {
+                            table.draw();
+                        }
+                    );
+                    $('#tiktokUsernameFilter, #tiktokNicheFilter, #minTiktokFollowers, #maxTiktokFollowers').on('change keyup', function() {
+                        table.draw();
+                    });
+
+                    $.fn.dataTable.ext.search.push(function (
+                        settings,
+                        data,
+                        dataIndex
+                    ) {
+                        const selectedTypes = $('#typeFilter').val() || [];
+                        const selectedDomains = $('#domainFilter').val() || [];
+                        const selectedLocations = $('#locationFilter').val() || [];
+                        const selectedAudiences = $('#audienceFilter').val() || [];
+                        const min = parseInt($('#minFollowers').val(), 10) || 0;
+                        const max = parseInt($('#maxFollowers').val(), 10) || Infinity;
+
+                        const rowType = (data[2] || '').toLowerCase();
+                        const rowAudience = (data[3] || '').toLowerCase();
+                        const rowDomain = (data[4] || '').toLowerCase();
+                        const rowLocation = (data[16] || '').toLowerCase();
+                        const followers = parseInt(data[6], 10) || 0;
+
+                        const typeMatch =
+                            selectedTypes.length === 0 ||
+                            selectedTypes.includes(rowType);
+                        const domainMatch =
+                            selectedDomains.length === 0 ||
+                            selectedDomains.includes(rowDomain);
+                        const locationMatch =
+                            selectedLocations.length === 0 ||
+                            selectedLocations.includes(rowLocation);
+                        const audienceMatch =
+                            selectedAudiences.length === 0 ||
+                            selectedAudiences.includes(rowAudience);
+                        const followersMatch = followers >= min && followers <= max;
+
+                        return (
+                            typeMatch &&
+                            domainMatch &&
+                            locationMatch &&
+                            audienceMatch &&
+                            followersMatch
+                        );
+                    });
+                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                        // TikTok Followers filter
+                        const minTikTok = parseInt($('#minTiktokFollowers').val(), 10) || 0;
+                        const maxTikTok = parseInt($('#maxTiktokFollowers').val(), 10) || Infinity;
+                        const tiktokFollowers = parseInt(data[26], 10) || 0; // Adjust index as per your columns
+
+                        if (tiktokFollowers < minTikTok || tiktokFollowers > maxTikTok) {
+                            return false;
+                        }
+
+                        // TikTok Username filter
+                        const selectedUsernames = $('#tiktokUsernameFilter').val();
+                        if (selectedUsernames && selectedUsernames.length > 0) {
+                            if (!selectedUsernames.includes(data[24])) { // Adjust index as per your columns
+                                return false;
+                            }
+                        }
+
+                        // TikTok Niche filter
+                        const selectedNiches = $('#tiktokNicheFilter').val();
+                        if (selectedNiches && selectedNiches.length > 0) {
+                            if (!selectedNiches.includes(data[36])) { // Adjust index as per your columns
+                                return false;
+                            }
+                        }
+
+                        return true;
+                    });
+
+                });
+        });
+        function populateFilters(data) {
+        const types = new Set();
+            const domains = new Set();
+            const locations = new Set();
+            const audiences = new Set();
+
+            data.forEach((row) => {
+                if (row.influencer_type)
+                    types.add(row.influencer_type.toLowerCase());
+                if (row.targeted_domain)
+                    domains.add(row.targeted_domain.toLowerCase());
+                if (row.influencer_location)
+                    locations.add(row.influencer_location.toLowerCase());
+                if (row.targeted_audience)
+                    audiences.add(row.targeted_audience.toLowerCase());
+            });
+
+            types.forEach((t) => {
+                $('#typeFilter').append(`<option value="${t}">${t}</option>`);
+            });
+
+            domains.forEach((d) => {
+                $('#domainFilter').append(`<option value="${d}">${d}</option>`);
+            });
+
+            locations.forEach((l) => {
+                $('#locationFilter').append(`<option value="${l}">${l}</option>`);
+            });
+
+            audiences.forEach((a) => {
+                $('#audienceFilter').append(`<option value="${a}">${a}</option>`);
+            });
+
+        // TikTok Username
+        const tiktokUsernames = [...new Set(data.map(d => d.tiktok_username).filter(Boolean))];
+        tiktokUsernames.forEach(username => {
+            $('#tiktokUsernameFilter').append(new Option(username, username));
+        });
+
+        // TikTok Niche
+        const tiktokNiches = [...new Set(data.map(d => d.tiktok_niche).filter(Boolean))];
+        tiktokNiches.forEach(niche => {
+            $('#tiktokNicheFilter').append(new Option(niche, niche));
+        });
+
+        // Initialize Select2 for new filters
+        $('#tiktokUsernameFilter, #tiktokNicheFilter').select2({
+            placeholder: 'Select...',
+            allowClear: true,
+            width: 'resolve'
+        });
+    }
+
+        
+
+        function toggleHashtag(element) {
+            const $el = $(element);
+            const isShort = $el.text() === $el.data('short');
+            $el.text(isShort ? $el.data('full') : $el.data('short'));
+        }
+
+        function showImage(url) {
+            $('#modalImage').attr('src', url);
+            $('#imgModal').css('display', 'block');
+        }
+
+        function closeModal() {
+            $('#imgModal').css('display', 'none');
+        }
+    </script>
+</body>
+</html>

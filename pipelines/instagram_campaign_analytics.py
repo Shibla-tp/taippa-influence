@@ -5,16 +5,17 @@ from pyairtable import Table
 from apify_client import ApifyClientAsync, ApifyClient
 from flask import Flask, jsonify, request
 from openai import OpenAI
+from config import OPENAI_API_KEY,AIRTABLE_API_KEY,AIRTABLE_BASE_ID,AIRTABLE_TABLE_NAME,APOLLO_API_KEY,APOLLO_HEADERS,APIFY_API_TOKEN
 
 app = Flask(__name__)
 
-# -----------------------------------
-# Config
-# -----------------------------------
-APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN")
-AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
-AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# # -----------------------------------
+# # Config
+# # -----------------------------------
+# APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN")
+# AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+# AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 apify_client = ApifyClient(APIFY_API_TOKEN)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)

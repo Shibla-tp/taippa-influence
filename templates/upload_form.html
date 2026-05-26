@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Upload Brand Brief</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #202020;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 50px auto;
+      background-color: #202020;
+      border-radius: 12px;
+      padding: 40px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.6);
+    }
+
+    h2 {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 30px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      background-color: #121212;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+
+    .error {
+      color: #ff4d4d;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .success {
+      color: #4CAF50;
+      font-size: 14px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    #documents {
+      display: none;
+    }
+
+    .file-drop {
+      border: 2px dashed #666;
+      padding: 40px 20px;
+      border-radius: 8px;
+      background-color: #1c1c1c;
+      text-align: center;
+      margin-bottom: 20px;
+      color: #aaa;
+      transition: 0.3s;
+      cursor: pointer;
+    }
+
+    .file-drop.hover {
+      background-color: #222;
+      border-color: #aaa;
+    }
+
+    .file-list {
+      margin-bottom: 20px;
+    }
+
+    .file-item {
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .file-item span.remove {
+      color: #ff4d4d;
+      margin-left: 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background-color: #4CAF50;
+      border-radius: 4px;
+      margin-top: 4px;
+      width: 100%;
+    }
+
+    button {
+      background-color: #7e3ff2;
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 6px;
+      width: 100%;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #692adf;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>Brand Brief Form</h2>
+
+    <form id="uploadForm" action="/submit_influencer_form_data" method="POST" enctype="multipart/form-data">
+      <label for="brand_id">Brand Id*</label>
+      <input type="text" name="brand_id" id="brand_id" placeholder="Enter Brand ID" required>
+      <div id="brandError" class="error" style="display: none;">Please fill out this field.</div>
+      
+
+      <label for="documents">Upload Documents*</label>
+      <div class="file-drop" id="fileDropLabel">
+        Drag & Drop Files Here<br><small>or</small><br><strong>Click to Browse</strong>
+      </div>
+      <input type="file" name="documents" id="documents" multiple>
+
+      <div id="fileList" class="file-list"></div>
+
+      <button type="submit">Submit</button>
+      <div id="successMsg" class="success" style="display: none;">✅ Uploaded successfully!</div>
+    </form>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById("documents");
+    const fileList = document.getElementById("fileList");
+    const dropLabel = document.getElementById("fileDropLabel");
+    const brandInput = document.getElementById("brand_id");
+    const brandError = document.getElementById("brandError");
+    const successMsg = document.getElementById("successMsg");
+
+    let uploadedFiles = [];
+
+    dropLabel.addEventListener("click", () => fileInput.click());
+
+    dropLabel.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropLabel.classList.add("hover");
+    });
+
+    dropLabel.addEventListener("dragleave", () => {
+      dropLabel.classList.remove("hover");
+    });
+
+    dropLabel.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropLabel.classList.remove("hover");
+
+      if (e.dataTransfer.files.length) {
+        for (let file of e.dataTransfer.files) {
+          uploadedFiles.push(file);
+        }
+        updateFileList();
+      }
+    });
+
+    fileInput.addEventListener("change", () => {
+      for (let file of fileInput.files) {
+        uploadedFiles.push(file);
+      }
+      fileInput.value = '';
+      updateFileList();
+    });
+
+    function updateFileList() {
+      fileList.innerHTML = "";
+      dropLabel.innerHTML = `
+        Drag & Drop Files Here<br><small>or</small><br><strong>Click to Browse</strong><br><br>
+        <span style="color:#aaa;">${uploadedFiles.length} file(s) selected</span>
+      `;
+      uploadedFiles.forEach((file, index) => {
+        const size = (file.size / 1024).toFixed(2);
+        const div = document.createElement("div");
+        div.className = "file-item";
+        div.innerHTML = `
+          <div>${file.name} <em>(${size}KB)</em></div>
+          <span class="remove" onclick="removeFile(${index})">❌</span>
+        `;
+        fileList.appendChild(div);
+      });
+    }
+
+    function removeFile(index) {
+      uploadedFiles.splice(index, 1);
+      updateFileList();
+    }
+
+    document.getElementById("uploadForm").addEventListener("submit", function (e) {
+      brandError.style.display = "none";
+      successMsg.style.display = "none";
+
+      if (!brandInput.value.trim()) {
+        brandError.style.display = "block";
+        e.preventDefault();
+        return;
+      }
+
+      if (uploadedFiles.length === 0) {
+        alert("Please select at least one file.");
+        e.preventDefault();
+        return;
+      }
+
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append("brand_id", brandInput.value);
+      uploadedFiles.forEach(file => formData.append("documents", file));
+
+      fetch("/submit_influencer_form_data", {
+        method: "POST",
+        body: formData
+      }).then(res => {
+        if (res.ok) {
+          successMsg.style.display = "block";
+          uploadedFiles = [];
+          updateFileList();
+        } else {
+          alert("❌ Upload failed. Please try again.");
+        }
+      }).catch(() => {
+        alert("❌ Something went wrong. Please try again.");
+      });
+    });
+  </script>
+</body>
+</html>
