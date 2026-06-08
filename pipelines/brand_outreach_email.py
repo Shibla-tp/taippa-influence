@@ -13,15 +13,15 @@ from config import AIRTABLE_API_KEY, AIRTABLE_BASE_ID
 # ─────────────────────────────────────────────
 SMTP_HOST  = "smtp.gmail.com"
 SMTP_PORT  = 587
-SMTP_USER  = "shibla@taippa.com"
-SMTP_PASS  = "hnvm oxbs pufr hobm"   # Gmail App Password
+SMTP_USER  = "urmi@taippa.com"
+SMTP_PASS  = "kmzl jfwj xemy idkv"   # Gmail App Password
 
-FROM_NAME  = "Shibla @ TAIPPA Influence"
-FROM_EMAIL = "shibla@taippa.com"
+FROM_NAME  = "Urmi @ TAIPPA Influence"
+FROM_EMAIL = "urmi@taippa.com"
 SUBJECT    = "We made it free."
 
 
-AIRTABLE_TABLE   = "influencer_outreach"
+AIRTABLE_TABLE   = "brand_outreach"
 
 # Airtable field names
 FIELD_EMAIL      = "email_id"       # recipient email
@@ -51,7 +51,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .logo-text {{ color: white; font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }}
   .logo-sub {{ color: rgba(255,255,255,0.4); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-top: 1px; }}
   .body {{ padding: 40px; }}
-  .greeting {{ font-size: 15px; color: #6B7280; margin: 0 0 24px; }}
+  .greeting {{ font-size: 15px; color: #111827; margin: 0 0 24px; }}
   .hook {{ font-size: 15px; color: #111827; line-height: 1.75; margin: 0 0 8px; }}
   .hook-q {{ font-size: 15px; color: #374151; line-height: 1.75; margin: 0 0 4px; padding-left: 16px; font-style: italic; }}
   .answer {{ font-size: 16px; font-weight: 600; color: #111827; margin: 20px 0; line-height: 1.75; }}
@@ -179,7 +179,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <hr class="divider">
     <div class="creators-box">
-      <p class="creators-stat">1,621</p>
+      <p class="creators-stat">1,635</p>
       <p class="creators-label">Verified GCC creators across 17 categories</p>
       <div>
         <span class="tag">UAE</span>
@@ -199,9 +199,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   </div>
 
   <div class="footer">
-    <p class="footer-name">Shibla</p>
+    <p class="footer-name">Urmi</p>
     <p class="footer-role">TAIPPA Influence</p>
-    <a href="mailto:shibla@taippa.com" class="footer-email">shibla@taippa.com</a>
+    <a href="mailto:urmi@taippa.com" class="footer-email">urmi@taippa.com</a>
     <p class="footer-url">app.taippa.com</p>
   </div>
 
@@ -305,8 +305,8 @@ def send_one_email(to_email: str, to_name: str) -> str:
         "Most brands in the GCC pay an agency AED 20,000+ just to answer three questions.\n"
         "We answer all three for free. In under 5 minutes. With AI.\n\n"
         "Try it free: https://app.taippa.com\n\n"
-        "— Shibla, TAIPPA Influence\n"
-        "shibla@taippa.com"
+        "— Urmi, TAIPPA Influence\n"
+        "urmi@taippa.com"
     )
 
     msg.attach(MIMEText(plain, "plain"))
