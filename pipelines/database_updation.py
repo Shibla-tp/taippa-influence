@@ -22,9 +22,11 @@ client_async = ApifyClientAsync(APIFY_API_TOKEN)
 # ---------------- GOOGLE DRIVE CONFIG ----------------
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
-CREDENTIALS_PATH = "credentials.json"
-TOKEN_PATH = "token.pickle"
+import os
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CREDENTIALS_PATH = os.path.join(BASE_DIR, "config", "credentials.json")
+TOKEN_PATH = os.path.join(BASE_DIR, "config", "token.pickle")
 
 # -----------------------------
 # UTILITY FUNCTIONS
@@ -60,26 +62,83 @@ def extract_external_urls(ext):
 # GOOGLE DRIVE AUTH
 # =====================================================
 
+# ---------------- GOOGLE DRIVE CONFIG ----------------
+
+
+
+
+# =====================================================
+# GOOGLE DRIVE AUTH
+# =====================================================
+
 def get_authenticated_drive_service():
-    creds = None
+    try:
+        print("=" * 60)
+        print("GOOGLE DRIVE AUTH START")
+        print("=" * 60)
+        print("Current WD:", os.getcwd())
+        print("BASE_DIR:", BASE_DIR)
+        print("Credentials path:", CREDENTIALS_PATH)
+        print("Token path:", TOKEN_PATH)
+        print("Credentials exists:", os.path.exists(CREDENTIALS_PATH))
+        print("Token exists:", os.path.exists(TOKEN_PATH))
+        print("BASE_DIR:", BASE_DIR)
 
-    if os.path.exists(TOKEN_PATH):
-        with open(TOKEN_PATH, "rb") as token:
-            creds = pickle.load(token)
+        for root, dirs, files in os.walk(BASE_DIR):
+            if "credentials.json" in files:
+                print("FOUND credentials.json:", os.path.join(root, "credentials.json"))
 
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                CREDENTIALS_PATH, SCOPES
+        if not os.path.exists(CREDENTIALS_PATH):
+            raise FileNotFoundError(
+                f"credentials.json not found at: {CREDENTIALS_PATH}"
             )
-            creds = flow.run_local_server(port=0)
 
-        with open(TOKEN_PATH, "wb") as token:
-            pickle.dump(creds, token)
+        creds = None
 
-    return build("drive", "v3", credentials=creds)
+        # Load existing token
+        if os.path.exists(TOKEN_PATH):
+            try:
+                with open(TOKEN_PATH, "rb") as token:
+                    creds = pickle.load(token)
+                print("✅ Existing token loaded")
+            except Exception as e:
+                print(f"❌ Failed loading token: {e}")
+                creds = None
+
+        # Refresh or create new credentials
+        if not creds or not creds.valid:
+
+            if creds and creds.expired and creds.refresh_token:
+                print("🔄 Refreshing expired token...")
+                creds.refresh(Request())
+
+            else:
+                print("🔐 Creating new Google OAuth token...")
+
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    CREDENTIALS_PATH,
+                    SCOPES
+                )
+
+                creds = flow.run_local_server(port=0)
+
+            # Save token
+            with open(TOKEN_PATH, "wb") as token:
+                pickle.dump(creds, token)
+
+            print(f"✅ Token saved: {TOKEN_PATH}")
+
+        print("✅ Google Drive authentication successful")
+
+        return build(
+            "drive",
+            "v3",
+            credentials=creds
+        )
+
+    except Exception as e:
+        print(f"❌ Google Drive Auth Error: {e}")
+        raise
 
 
 # =====================================================
@@ -114,14 +173,32 @@ def upload_file_to_drive(file_path, filename, mime_type):
 
 def download_and_upload_profile_pic(profile_pic_url, username):
     try:
-        response = requests.get(profile_pic_url, stream=True, timeout=60)
+
+        print(f"📥 Downloading profile pic for {username}")
+        print(f"📎 URL: {profile_pic_url}")
+
+        response = requests.get(
+            profile_pic_url,
+            stream=True,
+            timeout=60
+        )
+
+        print(f"📡 Status Code: {response.status_code}")
+
         if response.status_code != 200:
             return None, []
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".jpg"
+        ) as tmp:
+
             for chunk in response.iter_content(1024):
                 tmp.write(chunk)
+
             tmp_path = tmp.name
+
+        print(f"📁 Temp file: {tmp_path}")
 
         filename = f"{username}_profile_pic.jpg"
 
@@ -131,15 +208,16 @@ def download_and_upload_profile_pic(profile_pic_url, username):
             "image/jpeg"
         )
 
+        print(f"☁️ Drive URL: {drive_url}")
+
         os.remove(tmp_path)
 
-        # Airtable attachment format
         attachment = [{"url": drive_url}] if drive_url else []
 
         return drive_url, attachment
 
     except Exception as e:
-        print(f"Profile pic upload error: {e}")
+        print(f"❌ Profile pic upload error: {e}")
         return None, []
 
 
