@@ -22,8 +22,9 @@ client_async = ApifyClientAsync(APIFY_API_TOKEN)
 # ==============================
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
-CREDENTIALS_PATH = "credentials.json"
-TOKEN_PATH = "token.pickle"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CREDENTIALS_PATH = os.path.join(BASE_DIR, "config", "credentials.json")
+TOKEN_PATH = os.path.join(BASE_DIR, "config", "token.pickle")
 
 def get_drive_service():
     creds = None
