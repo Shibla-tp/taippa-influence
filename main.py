@@ -102,7 +102,7 @@ print(f"\n =============== Generate : Pipeline started  ===============")
 print(f" Directory path for main file: {os.path.dirname(os.path.abspath(__file__))}")
 print('Starting the app')
 app = Flask(__name__)
-# app.register_blueprint(influencer_bp)
+
 import ast  
 @app.route("/update_influencer_by_username", methods=["GET"])
 def update_influencer_by_username():
