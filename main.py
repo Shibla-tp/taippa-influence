@@ -202,7 +202,7 @@ def brand_outreach_email():
     result = process_brand_outreach_email()
     return jsonify(result)
 
-@app.route("/process-profile-pics-v2", methods=["GET"])
+@app.route("/process-profile-pics", methods=["GET"])
 def process_profile_pics():
     result = process_all_profile_pics()
     return jsonify(result)
